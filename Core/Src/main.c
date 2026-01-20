@@ -1,20 +1,20 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2026 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2026 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
@@ -22,7 +22,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-//#include "user_task.h"
+// #include "user_task.h"
+#include "YX95R_LED.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,6 +46,7 @@ UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart1_rx;
 DMA_HandleTypeDef hdma_usart1_tx;
+DMA_HandleTypeDef hdma_usart2_rx;
 
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
@@ -137,7 +139,7 @@ int main(void)
 
   /* USER CODE BEGIN RTOS_THREADS */
   init_user_task();
-
+  
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_EVENTS */
@@ -279,10 +281,14 @@ static void MX_DMA_Init(void)
 
   /* DMA controller clock enable */
   __HAL_RCC_DMA2_CLK_ENABLE();
+  __HAL_RCC_DMA1_CLK_ENABLE();
 
   /* DMA interrupt init */
+  /* DMA1_Stream5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
   /* DMA2_Stream5_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA2_Stream5_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA2_Stream5_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA2_Stream5_IRQn);
   /* DMA2_Stream7_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA2_Stream7_IRQn, 5, 0);
@@ -329,16 +335,16 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN Header_StartDefaultTask */
 /**
-  * @brief  Function implementing the defaultTask thread.
-  * @param  argument: Not used
-  * @retval None
-  */
+ * @brief  Function implementing the defaultTask thread.
+ * @param  argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_StartDefaultTask */
 void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN 5 */
   /* Infinite loop */
-  for(;;)
+  for (;;)
   {
 
     osDelay(500);

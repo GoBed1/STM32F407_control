@@ -2,6 +2,8 @@
 #define _USER_TASK_H
 
 #include "main.h"
+#include "YX95R_LED.h"
+#include "uart_app.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,6 +14,8 @@ extern "C" {
 
 void init_user_task(void);
 void start_user_task(void *argument);
+void YX95R_LED_task(void *argument);
+void ModbusRecv_task(void *argument);
 
 #ifdef __cplusplus
 }

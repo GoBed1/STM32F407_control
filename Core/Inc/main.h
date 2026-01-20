@@ -61,7 +61,7 @@ void Error_Handler(void);
 #define LED1_GPIO_Port GPIOE
 
 /* USER CODE BEGIN Private defines */
-
+ extern UART_HandleTypeDef huart2;
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
