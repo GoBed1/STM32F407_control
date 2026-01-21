@@ -1,11 +1,17 @@
 
 #include "nex_modbus_rtu_client.h"
-
-#include <stddef.h>
-
+// #include <stddef.h>
+#include "event_groups.h"
 ModbusRtuClient encoder_client;
 // uint16_t a=0;
-
+// ✅ 创建事件组（用来通知RX任务）
+  // EventGroupHandle_t eg  = xEventGroupCreate();
+  EventGroupHandle_t eg = NULL; // 初始化事件组为NULL
+  void NexModbusClient_Init(void) {
+    if (eg == NULL) {
+        eg = xEventGroupCreate();
+    }
+}
 uint16_t mbr_calc_crc(uint8_t *Buffer, uint8_t u8length)
 {
     unsigned int temp, temp2, flag;

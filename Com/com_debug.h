@@ -4,6 +4,11 @@
 #include "main.h"
 #include "string.h"
 
+#include "event_groups.h"
+
+#define EVENT_CMD_SENT (1 << 0)  // ✅ TX发送了命令的事件
+
+extern uint8_t a;
 #define DEBUG0
 
 #ifdef DEBUG0

@@ -5,12 +5,13 @@
 #include "main.h"
 // #include "stm32h7xx_hal.h"
 #include "stm32f4xx_hal.h"
+// #include "event_groups.h"
 
 #include "cmsis_os.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "timers.h"
-#include <stdint.h>
+// #include <stdint.h>
 #define mbr_printf(...)  // LOGGER_INFO("MB-RTU", __VA_ARGS__)
 #define mbr_printf_line(...)  // LOGGER_INFO("MB-RTU", __VA_ARGS__)
 
@@ -42,15 +43,17 @@ typedef struct ModbusRtuClient {
   uint8_t rx_timeout;
   uint8_t parse_buf[128];
 
-  
+  // EventGroupHandle_t event_group; // ✅ 新增：事件组句柄
 
   TaskHandle_t task_handle;
   TimerHandle_t timeout_timer;
 } ModbusRtuClient;
 
 // extern ModbusRtuClient encoder_client;
-
+// extern EventGroupHandle_t eg;
 // extern uint16_t a=0;
+
+void NexModbusClient_Init(void);
 
 uint16_t mbr_calc_crc(uint8_t *Buffer, uint8_t u8length);
 void mbr_put_crc(uint8_t* frame, uint8_t len_wo_crc);
