@@ -43,10 +43,10 @@ void init_user_task(void)
     
   if (eg == NULL)
   {
-    debug_println("❌ Failed to create event group!");
+    debug_println("Failed to create event group!");
     return;
   }
-  debug_println("✅ Event group created");
+  debug_println("Event group created");
 
   user_task_handle = osThreadNew(start_user_task, NULL, &user_task_attributes); // 创建用户任务线程
                                                                                 // 爆闪灯任务
@@ -77,7 +77,7 @@ void YX95R_LED_task(void *argument)
     if(a>0&&a<=2){
       a--;
       YX95R_RGB_Is_Online(0xff);
-    // ✅ 通知RX任务：我发送了命令，你可以等待响应了！
+    // 通知RX任务：我发送了命令，你可以等待响应了！
     xEventGroupSetBits(eg, EVENT_CMD_SENT);
     }
     // 是否在线查询
@@ -118,21 +118,15 @@ void ModbusRecv_task(void *argument)
      if ((uxBits & EVENT_CMD_SENT) != 0)
     {
       taskENTER_CRITICAL();
-      debug_println("[RX] 📨 TX sent command, now waiting for UART response (3 seconds)...");
+      debug_println("[RX] TX sent command, now waiting for UART response (3 seconds)...");
       taskEXIT_CRITICAL();
     // 等待中断唤醒（或 3 秒超时）
-    uint32_t notif = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(4000));
+    uint32_t notif = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(3000));
 
     if (notif != 0)
     {
       // ✅ 有数据！解析处理
-      // uint16_t regs[2] = {0};
-      // uint32_t value = 0;
-      // mbr_parse_2regs(encoder_client.parse_buf,
-      //                 encoder_client.rx_frame_len,
-      //                 regs, &value);
-      // debug_println("OK: 0x%08lX\n", (unsigned long)value);
-      // debug_println("Recevice1: %.*s\n", client->rx_frame_len , client->parse_buf);
+      
       taskENTER_CRITICAL();
       debug_println("Recevice1: ");
       for (int i = 0; i < encoder_client.rx_frame_len; i++)

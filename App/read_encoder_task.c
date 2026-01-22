@@ -9,11 +9,7 @@
 // #include "lwip.h"
 
 // ModbusRtuClient encoder_client;
-const osThreadAttr_t read_encoder_task_attributes = {
-    .name = "read_encoder_task",
-    .stack_size = 1024 * 4,
-    .priority = (osPriority_t)osPriorityLow,
-};
+
 
 void mbr_recv_callback(ModbusRtuClient *client, UART_HandleTypeDef *huart, uint16_t size){
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
