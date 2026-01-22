@@ -6,6 +6,9 @@ extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart2;
 extern ModbusRtuClient encoder_client;
 extern EventGroupHandle_t eg;
+extern ModbusRtu_Resend_t Resend;
+extern uint8_t test_tx_cmd[8];
+
 osThreadId_t user_task_handle;
 const osThreadAttr_t user_task_attributes = {
     .name = "userTask",
@@ -76,7 +79,9 @@ void YX95R_LED_task(void *argument)
     // YX95R_RGB_Control_Light(2, 6, 1); // 红色慢闪
     if(a>0&&a<=2){
       a--;
-      YX95R_RGB_Is_Online(0xff);
+      // YX95R_RGB_Is_Online(0xff);
+      //把cmd复制到resend_buf
+      // memcpy(Resend.Resend_buf,encoder_client.tx_buf,encoder_client.rx_frame_len);
     // 通知RX任务：我发送了命令，你可以等待响应了！
     xEventGroupSetBits(eg, EVENT_CMD_SENT);
     }
@@ -111,10 +116,6 @@ void ModbusRecv_task(void *argument)
         portMAX_DELAY                 // 无限等待
     );
     // 发送命令
-
-    // YX95R_RGB_Control_Light(0xFF, 6,1); // 红色慢闪
-    // HAL_UART_Transmit_DMA(&huart2, encoder_client.tx_buf, 8);
-    //        YX95R_RGB_Control_Light(2, 6,1); // 红色慢闪
      if ((uxBits & EVENT_CMD_SENT) != 0)
     {
       taskENTER_CRITICAL();
@@ -126,7 +127,8 @@ void ModbusRecv_task(void *argument)
     if (notif != 0)
     {
       // ✅ 有数据！解析处理
-      
+      //timeout count 清零
+      Resend.timeout_resend_count = 0;
       taskENTER_CRITICAL();
       debug_println("Recevice1: ");
       for (int i = 0; i < encoder_client.rx_frame_len; i++)
@@ -134,14 +136,33 @@ void ModbusRecv_task(void *argument)
         debug_println("%02X ", encoder_client.parse_buf[i]);
       }
       taskEXIT_CRITICAL();
+
     }
     else
     {
+      // 处理超时重发
+      Resend.timeout_resend_count++;
       // ❌ 超时
-      debug_println("Timeout\n");
+      debug_println("Timeout--%d\n", Resend.timeout_resend_count);
+      
+      if (Resend.timeout_resend_count >= 3)
+      {
+        // 重发次数过多，重置计数器并退出任务
+        Resend.timeout_resend_count = 0;
+        debug_println("Max timeout resend reached. Exiting task.");
+        
+      }else{
+        // HAL_UARTEx_ReceiveToIdle_DMA(client->huart, client->rx_buf, (uint16_t)sizeof(client->rx_buf));
+      //测试重新发指令
+      YX95R_RGB_Send_Command(test_tx_cmd, 8);
+      debug_println("Resend command due to timeout...%d", Resend.timeout_resend_count);
+      //发送标志位置为0
+      xEventGroupSetBits(eg, EVENT_CMD_SENT);
+      }
+      
     }
   }
     // 下一轮轮询（100ms）
-    vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(2000));
+    vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(3000));
   }
 }

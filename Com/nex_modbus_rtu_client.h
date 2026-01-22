@@ -52,6 +52,18 @@ typedef struct ModbusRtuClient {
 // extern ModbusRtuClient encoder_client;
 // extern EventGroupHandle_t eg;
 // extern uint16_t a=0;
+typedef struct {
+   // ✅ 重试相关
+    uint8_t crcError_resend_count;        // 校验码错误导致重发的次数
+    uint8_t crcError_max_resend;        // 校验码最大重试次数（建议 3）
+    uint8_t   timeout_resend_count;                           //超时重发次数
+    uint8_t   timeout_max_resend;                           //超时最大重发次数（建议 3）
+    uint8_t  Resend_buf[128];                      //重发数据缓存
+    uint8_t  Resend_len;                      //重发数据长度
+
+}ModbusRtu_Resend_t;
+
+
 
 void NexModbusClient_Init(void);
 

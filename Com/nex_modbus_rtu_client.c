@@ -12,6 +12,19 @@ ModbusRtuClient encoder_client;
         eg = xEventGroupCreate();
     }
 }
+ModbusRtu_Resend_t Resend={
+  .Resend_buf={0},
+  .Resend_len=0,
+  .crcError_max_resend=3,
+  .crcError_resend_count=0,
+  .timeout_max_resend=3,
+  .timeout_resend_count=0
+
+};
+
+//用于测试的全局Tx_cmd指令(查询是否在线)
+uint8_t test_tx_cmd[8]={0xff,0x03,0x00,0x3f,0x00,0x00,0x60,0x18};
+
 uint16_t mbr_calc_crc(uint8_t *Buffer, uint8_t u8length)
 {
     unsigned int temp, temp2, flag;
