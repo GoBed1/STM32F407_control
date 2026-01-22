@@ -1,6 +1,7 @@
 #include "user_task.h"
 #include "cmsis_os.h"
 #include "com_debug.h"
+#include "user_logic.h"
 
 extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart2;
@@ -136,7 +137,7 @@ void ModbusRecv_task(void *argument)
         debug_println("%02X ", encoder_client.parse_buf[i]);
       }
       taskEXIT_CRITICAL();
-
+modbus_RxData_logic(encoder_client.parse_buf, encoder_client.rx_frame_len);
     }
     else
     {
@@ -145,7 +146,7 @@ void ModbusRecv_task(void *argument)
       // ❌ 超时
       debug_println("Timeout--%d\n", Resend.timeout_resend_count);
       
-      if (Resend.timeout_resend_count >= 3)
+      if (Resend.timeout_resend_count > Resend.timeout_max_resend)
       {
         // 重发次数过多，重置计数器并退出任务
         Resend.timeout_resend_count = 0;

@@ -18,16 +18,16 @@
 typedef enum ERR_OP_LIST
 {
   // Errors
-  ERR_NOT_MASTER    = 10,
-  ERR_POLLING       = 11,
-  ERR_BUFF_OVERFLOW = 12,
-  ERR_BAD_CRC       = 13,
-  ERR_EXCEPTION     = 14,
-  ERR_BAD_SIZE      = 15,
-  ERR_BAD_ADDRESS   = 16,
-  ERR_TIME_OUT      = 17,
-  ERR_BAD_SLAVE_ID  = 18,
-  ERR_BAD_TCP_ID    = 19,
+  ERR_NOT_MASTER    = 10,// 无主设备错误
+  ERR_POLLING       = 11,//轮询错误
+  ERR_BUFF_OVERFLOW = 12,//缓冲区溢出错误
+  ERR_BAD_CRC       = 13,// CRC校验错误
+  ERR_EXCEPTION     = 14,// 从机异常响应错误
+  ERR_BAD_SIZE      = 15,// 错误的帧大小错误
+  ERR_BAD_ADDRESS   = 16,// 错误的从机地址错误
+  ERR_TIME_OUT      = 17,// 超时错误
+  ERR_BAD_SLAVE_ID  = 18,// 错误的从机ID错误
+  ERR_BAD_TCP_ID    = 19,// 错误的TCP ID错误
   // Operations
   OP_OK_QUERY       = 20  // this value is not an error, it is a number different than zero to acknowledge a correct operation,
                                         // which is needed because FreeRTOS notifications return zero on timeout.
