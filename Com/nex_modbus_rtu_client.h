@@ -46,6 +46,7 @@ typedef struct ModbusRtuClient {
   // EventGroupHandle_t event_group; // ✅ 新增：事件组句柄
 
   TaskHandle_t task_handle;
+  TaskHandle_t Rx_lora_task_handle;
   TimerHandle_t timeout_timer;
 } ModbusRtuClient;
 

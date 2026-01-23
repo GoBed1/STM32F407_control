@@ -17,6 +17,8 @@ void start_user_task(void *argument);
 void YX95R_LED_task(void *argument);
 void ModbusRecv_task(void *argument);
 
+void RecvMaster_task(void *argument);
+
 #ifdef __cplusplus
 }
 #endif

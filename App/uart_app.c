@@ -18,6 +18,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
         {
             // 放通知到ModbusRtuClient模块处理数据包
             debug_println("%d", Size);
+            
             mbr_recv_callback(&encoder_client, huart, Size);
         }
     }

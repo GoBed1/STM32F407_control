@@ -3,6 +3,8 @@
 // #include <stddef.h>
 #include "event_groups.h"
 ModbusRtuClient encoder_client;
+
+
 // uint16_t a=0;
 // ✅ 创建事件组（用来通知RX任务）
   // EventGroupHandle_t eg  = xEventGroupCreate();

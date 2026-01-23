@@ -25,10 +25,17 @@ const osThreadAttr_t lightTask_attributes = {
     .priority = (osPriority_t)osPriorityNormal,
 };
 
-// 创建灯控制任务
+// 创建接收控制任务
 osThreadId_t modbusRecvTaskHandle;
 const osThreadAttr_t modbusRecvTask_attributes = {
     .name = "modbusRecvTask",
+    .stack_size = 1024 * 4,
+    .priority = (osPriority_t)osPriorityNormal,
+};
+// 接收工控机数据任务
+osThreadId_t RecvMasterTaskHandle;
+const osThreadAttr_t RecvMasterTask_attributes = {
+    .name = "RecvMasterTask",
     .stack_size = 1024 * 4,
     .priority = (osPriority_t)osPriorityNormal,
 };
@@ -40,23 +47,31 @@ void init_user_task(void)
   encoder_client.task_handle = NULL;
   encoder_client.rx_frame_len = 0;
   encoder_client.rx_timeout = 0;
-
+encoder_client.Rx_lora_task_handle = NULL;
   // ✅ 创建事件组（用来通知RX任务）
   // EventGroupHandle_t eg = xEventGroupCreate();
-   NexModbusClient_Init();
-    
+  NexModbusClient_Init();
+
   if (eg == NULL)
   {
     debug_println("Failed to create event group!");
     return;
   }
   debug_println("Event group created");
+  HAL_UARTEx_ReceiveToIdle_DMA(encoder_client.huart, encoder_client.rx_buf, (uint16_t)sizeof(encoder_client.rx_buf));
 
   user_task_handle = osThreadNew(start_user_task, NULL, &user_task_attributes); // 创建用户任务线程
                                                                                 // 爆闪灯任务
   lightTaskHandle = osThreadNew(YX95R_LED_task, NULL, &lightTask_attributes);   // 灯控任务线程
 
   modbusRecvTaskHandle = osThreadNew(ModbusRecv_task, NULL, &modbusRecvTask_attributes); // modbus接收任务线程
+                                                                                         
+  RecvMasterTaskHandle = osThreadNew(RecvMaster_task, NULL, &RecvMasterTask_attributes);  // 接收工控机数据任务线程
+  if (RecvMasterTaskHandle == NULL) {
+        debug_println("❌ Failed to create RecvMasterTask!");  // ⚠️ 重点看这个！
+    } else {
+        debug_println("✅ RecvMasterTask created");
+    }
 }
 
 void start_user_task(void *argument)
@@ -78,16 +93,19 @@ void YX95R_LED_task(void *argument)
     //    	  YX95R_RGB_Light_Off(2);
     //  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
     // YX95R_RGB_Control_Light(2, 6, 1); // 红色慢闪
-    if(a>0&&a<=2){
+    // debug_println("YX95R_LED_task111111111111111111111111");
+
+    if (a > 0 && a <= 2)
+    {
       a--;
       // YX95R_RGB_Is_Online(0xff);
-      //把cmd复制到resend_buf
+      // 把cmd复制到resend_buf
       // memcpy(Resend.Resend_buf,encoder_client.tx_buf,encoder_client.rx_frame_len);
-    // 通知RX任务：我发送了命令，你可以等待响应了！
-    xEventGroupSetBits(eg, EVENT_CMD_SENT);
+      // 通知RX任务：我发送了命令，你可以等待响应了！
+      xEventGroupSetBits(eg, EVENT_CMD_SENT);
     }
     // 是否在线查询
-    
+
     osDelay(1000); // 闪 5 秒
 
     // 灯关闭
@@ -104,66 +122,98 @@ void ModbusRecv_task(void *argument)
   client->task_handle = xTaskGetCurrentTaskHandle();
 
   TickType_t last_wake = xTaskGetTickCount();
-  HAL_UARTEx_ReceiveToIdle_DMA(client->huart, client->rx_buf, (uint16_t)sizeof(client->rx_buf));
+  // HAL_UARTEx_ReceiveToIdle_DMA(client->huart, client->rx_buf, (uint16_t)sizeof(client->rx_buf));
 
   for (;;)
   {
     // ✅ 等待TX任务发送命令的事件
     EventBits_t uxBits = xEventGroupWaitBits(
-        eg,  // 事件组
-        EVENT_CMD_SENT,               // 等待这个事件
-        pdTRUE,                       // 自动清除标志
-        pdFALSE,                      // 不需要等待所有位
-        portMAX_DELAY                 // 无限等待
+        eg,             // 事件组
+        EVENT_CMD_SENT, // 等待这个事件
+        pdTRUE,         // 自动清除标志
+        pdFALSE,        // 不需要等待所有位
+        portMAX_DELAY   // 无限等待
     );
     // 发送命令
-     if ((uxBits & EVENT_CMD_SENT) != 0)
+    if ((uxBits & EVENT_CMD_SENT) != 0)
     {
       taskENTER_CRITICAL();
       debug_println("[RX] TX sent command, now waiting for UART response (3 seconds)...");
       taskEXIT_CRITICAL();
-    // 等待中断唤醒（或 3 秒超时）
-    uint32_t notif = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(3000));
+      // 等待中断唤醒（或 3 秒超时）
+      uint32_t notif = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(3000));
 
-    if (notif != 0)
-    {
-      // ✅ 有数据！解析处理
-      //timeout count 清零
-      Resend.timeout_resend_count = 0;
-      taskENTER_CRITICAL();
-      debug_println("Recevice1: ");
-      for (int i = 0; i < encoder_client.rx_frame_len; i++)
+      if (notif != 0)
       {
-        debug_println("%02X ", encoder_client.parse_buf[i]);
-      }
-      taskEXIT_CRITICAL();
-modbus_RxData_logic(encoder_client.parse_buf, encoder_client.rx_frame_len);
-    }
-    else
-    {
-      // 处理超时重发
-      Resend.timeout_resend_count++;
-      // ❌ 超时
-      debug_println("Timeout--%d\n", Resend.timeout_resend_count);
-      
-      if (Resend.timeout_resend_count > Resend.timeout_max_resend)
-      {
-        // 重发次数过多，重置计数器并退出任务
+        // ✅ 有数据！解析处理
+        // timeout count 清零
         Resend.timeout_resend_count = 0;
-        debug_println("Max timeout resend reached. Exiting task.");
-        
-      }else{
-        // HAL_UARTEx_ReceiveToIdle_DMA(client->huart, client->rx_buf, (uint16_t)sizeof(client->rx_buf));
-      //测试重新发指令
-      YX95R_RGB_Send_Command(test_tx_cmd, 8);
-      debug_println("Resend command due to timeout...%d", Resend.timeout_resend_count);
-      //发送标志位置为0
-      xEventGroupSetBits(eg, EVENT_CMD_SENT);
+        taskENTER_CRITICAL();
+        debug_println("Recevice1: ");
+        for (int i = 0; i < encoder_client.rx_frame_len; i++)
+        {
+          debug_println("%02X ", encoder_client.parse_buf[i]);
+        }
+        taskEXIT_CRITICAL();
+        modbus_RxData_logic(encoder_client.parse_buf, encoder_client.rx_frame_len);
       }
-      
+      else
+      {
+        // 处理超时重发
+        Resend.timeout_resend_count++;
+        // ❌ 超时
+        debug_println("Timeout--%d\n", Resend.timeout_resend_count);
+
+        if (Resend.timeout_resend_count > Resend.timeout_max_resend)
+        {
+          // 重发次数过多，重置计数器并退出任务
+          Resend.timeout_resend_count = 0;
+          debug_println("Max timeout resend reached. Exiting task.");
+        }
+        else
+        {
+          // HAL_UARTEx_ReceiveToIdle_DMA(client->huart, client->rx_buf, (uint16_t)sizeof(client->rx_buf));
+          // 测试重新发指令
+          YX95R_RGB_Send_Command(test_tx_cmd, 8);
+          debug_println("Resend command due to timeout...%d", Resend.timeout_resend_count);
+          // 发送标志位置为0
+          xEventGroupSetBits(eg, EVENT_CMD_SENT);
+        }
+      }
     }
-  }
     // 下一轮轮询（100ms）
     vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(3000));
+  }
+}
+
+
+// 接收工控机数据任务
+void RecvMaster_task(void *argument)
+{
+  // taskENTER_CRITICAL();
+debug_println("12222222222222222222222222222222222222222222");
+// taskEXIT_CRITICAL();
+  encoder_client.Rx_lora_task_handle = xTaskGetCurrentTaskHandle();
+  for (;;)
+  {
+     // ✅ 等待中断通知（无限等待）
+        uint32_t notif1 = ulTaskNotifyTake(
+            pdTRUE,        // 收到通知后清除计数
+            portMAX_DELAY  // 无限等待
+        );
+    // 在这里添加接收工控机数据的代码
+     if (notif1 != 0)
+      {
+        // 接收数据逻辑处理代码...
+        taskENTER_CRITICAL();
+        debug_println("Recevice master.......: ");
+        for (int i = 0; i < encoder_client.rx_frame_len; i++)
+        {
+          debug_println("%02X ", encoder_client.parse_buf[i]);
+        }
+        taskEXIT_CRITICAL();
+
+      }
+    osDelay(100); // 根据需要调整延迟时间
   }
 }
