@@ -2,6 +2,8 @@
 #include "cmsis_os.h"
 #include "com_debug.h"
 #include "user_logic.h"
+#define CMD_LED_SWITCH 0
+#define STATUS_LED_SWITCH    100
 
 extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart2;
@@ -9,6 +11,13 @@ extern ModbusRtuClient encoder_client;
 extern EventGroupHandle_t eg;
 extern ModbusRtu_Resend_t Resend;
 extern uint8_t test_tx_cmd[8];
+
+// ✅ 定义 Modbus 从机全局变量
+nmbs_t modbus_slave;
+nmbs_server_t slave_data = {
+    .id = 0x03, // 从机地址（LoRa转485模块的地址）
+    .coils = {0},
+    .regs = {0}};
 
 osThreadId_t user_task_handle;
 const osThreadAttr_t user_task_attributes = {
@@ -47,11 +56,11 @@ void init_user_task(void)
   encoder_client.task_handle = NULL;
   encoder_client.rx_frame_len = 0;
   encoder_client.rx_timeout = 0;
-encoder_client.Rx_lora_task_handle = NULL;
+  // encoder_client.Rx_lora_task_handle = NULL;//用于测试lora-485接收的任务句柄
   // ✅ 创建事件组（用来通知RX任务）
   // EventGroupHandle_t eg = xEventGroupCreate();
-  NexModbusClient_Init();
-
+  // 创建事件组（用来通知RX任务）
+  EventGroupCreate_Init();
   if (eg == NULL)
   {
     debug_println("Failed to create event group!");
@@ -60,18 +69,34 @@ encoder_client.Rx_lora_task_handle = NULL;
   debug_println("Event group created");
   HAL_UARTEx_ReceiveToIdle_DMA(encoder_client.huart, encoder_client.rx_buf, (uint16_t)sizeof(encoder_client.rx_buf));
 
+  // 初始化Modbus客户端
+  // ✅ 初始化寄存器默认值
+  // slave_data.regs[10] = 1;  // 默认颜色：红色
+  // slave_data.regs[11] = 50; // 默认亮度：50
+  nmbs_error err = nmbs_server_init(&modbus_slave, &slave_data);
+  if (err != NMBS_ERROR_NONE)
+  {
+    debug_println("❌ Modbus server init failed: %d", err);
+
+    return;
+  }
+  else
+  {
+    debug_println("✅ Modbus server initialized successfully");
+  }
+
   user_task_handle = osThreadNew(start_user_task, NULL, &user_task_attributes); // 创建用户任务线程
                                                                                 // 爆闪灯任务
   lightTaskHandle = osThreadNew(YX95R_LED_task, NULL, &lightTask_attributes);   // 灯控任务线程
 
   modbusRecvTaskHandle = osThreadNew(ModbusRecv_task, NULL, &modbusRecvTask_attributes); // modbus接收任务线程
-                                                                                         
-  RecvMasterTaskHandle = osThreadNew(RecvMaster_task, NULL, &RecvMasterTask_attributes);  // 接收工控机数据任务线程
-  if (RecvMasterTaskHandle == NULL) {
-        debug_println("❌ Failed to create RecvMasterTask!");  // ⚠️ 重点看这个！
-    } else {
-        debug_println("✅ RecvMasterTask created");
-    }
+
+  RecvMasterTaskHandle = osThreadNew(RecvMaster_task, NULL, &RecvMasterTask_attributes); // 接收工控机数据任务线程
+  // if (RecvMasterTaskHandle == NULL) {
+  //       debug_println("❌ Failed to create RecvMasterTask!");
+  //   } else {
+  //       debug_println("✅ RecvMasterTask created");
+  //   }
 }
 
 void start_user_task(void *argument)
@@ -89,15 +114,26 @@ void YX95R_LED_task(void *argument)
 
   for (;;)
   {
+    taskENTER_CRITICAL();
+    uint16_t cmd_led_switch = slave_data.coils[CMD_LED_SWITCH];
+    taskEXIT_CRITICAL();
     // YX95R_RGB_Control_Light(2, 6,1); // 红色慢闪
     //    	  YX95R_RGB_Light_Off(2);
     //  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
     // YX95R_RGB_Control_Light(2, 6, 1); // 红色慢闪
     // debug_println("YX95R_LED_task111111111111111111111111");
-
-    if (a > 0 && a <= 2)
+    debug_println("线圈状态：%d", slave_data.coils[STATUS_LED_SWITCH]);
+    if (cmd_led_switch == 1)
     {
-      a--;
+      // 灯打开
+      debug_println("📡 [Cmd] LED ON command detected");
+      YX95R_RGB_Control_Light(2, 6, 1); // 红色慢闪
+      // 更新状态寄存器coils[100]且清除命令寄存器coils[0]
+      taskENTER_CRITICAL();
+      slave_data.coils[STATUS_LED_SWITCH] = 1;
+      slave_data.coils[CMD_LED_SWITCH] = 0;
+      taskEXIT_CRITICAL();
+      // a--;
       // YX95R_RGB_Is_Online(0xff);
       // 把cmd复制到resend_buf
       // memcpy(Resend.Resend_buf,encoder_client.tx_buf,encoder_client.rx_frame_len);
@@ -186,34 +222,35 @@ void ModbusRecv_task(void *argument)
   }
 }
 
-
-// 接收工控机数据任务
+// 接收工控机数据任务(从机任务slave task)
 void RecvMaster_task(void *argument)
 {
   // taskENTER_CRITICAL();
-debug_println("12222222222222222222222222222222222222222222");
-// taskEXIT_CRITICAL();
-  encoder_client.Rx_lora_task_handle = xTaskGetCurrentTaskHandle();
+  // debug_println("modbusSlave_task started...........");
+  // taskEXIT_CRITICAL();
+  // encoder_client.Rx_lora_task_handle = xTaskGetCurrentTaskHandle();//用于测试lora-485接收的任务句柄
   for (;;)
   {
-     // ✅ 等待中断通知（无限等待）
-        uint32_t notif1 = ulTaskNotifyTake(
-            pdTRUE,        // 收到通知后清除计数
-            portMAX_DELAY  // 无限等待
-        );
-    // 在这里添加接收工控机数据的代码
-     if (notif1 != 0)
-      {
-        // 接收数据逻辑处理代码...
-        taskENTER_CRITICAL();
-        debug_println("Recevice master.......: ");
-        for (int i = 0; i < encoder_client.rx_frame_len; i++)
-        {
-          debug_println("%02X ", encoder_client.parse_buf[i]);
-        }
-        taskEXIT_CRITICAL();
+    // ✅ 等待中断通知（无限等待）
+    // uint32_t notif1 = ulTaskNotifyTake(
+    //     pdTRUE,       // 收到通知后清除计数
+    //     portMAX_DELAY // 无限等待
+    // );
+    // // 在这里添加接收工控机数据的代码
+    // if (notif1 != 0)
+    // {
+    // 接收数据逻辑处理代码...
+    // taskENTER_CRITICAL();
+    debug_println("Recevice master.......: ");
+    // for (int i = 0; i < encoder_client.rx_frame_len; i++)
+    // {
+    //   debug_println("%02X ", encoder_client.parse_buf[i]);
+    // }
+    // taskEXIT_CRITICAL();
+    // }
+    // ✅ 轮询处理 Modbus 请求
+    nmbs_server_poll(&modbus_slave);
 
-      }
-    osDelay(100); // 根据需要调整延迟时间
+    osDelay(1000); // 根据需要调整延迟时间
   }
 }

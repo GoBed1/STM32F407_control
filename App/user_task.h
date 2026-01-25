@@ -5,6 +5,7 @@
 #include "YX95R_LED.h"
 #include "uart_app.h"
 #include "nex_modbus_rtu_client.h"
+#include "port.h"
 #ifdef __cplusplus
 extern "C" {
 #endif

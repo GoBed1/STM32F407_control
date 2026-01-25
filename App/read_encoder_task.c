@@ -6,10 +6,12 @@
 #include "stm32f4xx_hal.h"
 #include "com_debug.h"
 #include "timers.h"
+#include "queue.h"
 // #include "lwip.h"
-
+// #include "port.h"
 // ModbusRtuClient encoder_client;
-
+extern xQueueHandle rtu_rx_q;
+extern uint8_t rtu_rx_b[MB_RX_BUF_SIZE];
 void mbr_recv_callback(ModbusRtuClient *client, UART_HandleTypeDef *huart, uint16_t size)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -24,12 +26,13 @@ void mbr_recv_callback(ModbusRtuClient *client, UART_HandleTypeDef *huart, uint1
         memcpy(client->parse_buf, client->rx_buf, size);
         client->rx_frame_len = (uint8_t)size;
     }
-    // 重新启动 DMA 接收以接收下一个数据包
-    HAL_UARTEx_ReceiveToIdle_DMA(huart, client->rx_buf, (uint16_t)sizeof(client->rx_buf));
 
     // 判断哪个从机发来的数据，然后通知对应的任务
     if (client->parse_buf[0] == 0x01 || client->parse_buf[0] == 0x02)
     { // 爆闪灯从机
+
+        // 重新启动 DMA 接收以接收下一个数据包
+        HAL_UARTEx_ReceiveToIdle_DMA(huart, client->rx_buf, (uint16_t)sizeof(client->rx_buf));
         if (client->task_handle)
         {
             vTaskNotifyGiveFromISR(client->task_handle,
@@ -38,20 +41,28 @@ void mbr_recv_callback(ModbusRtuClient *client, UART_HandleTypeDef *huart, uint1
         }
     }
     else if (client->parse_buf[0] == 0x03)
-    { // lora转485从机
-        debug_println("2222222222222222222222222222222222222222222222");
-        for (int i = 0; i < client->rx_frame_len; i++)
-        {
-            debug_println("%02X ", client->parse_buf[i]);
-        }
+    {
+        // { // lora转485从机
+        //     debug_println("2222222222222222222222222222222222222222222222");
+        //     for (int i = 0; i < client-rx_frame_len; i++)
+        //     {
+        //         debug_println("%02X ", client->parse_buf[i]);
+        //     }
 
-        if (client->Rx_lora_task_handle)
-        {
-            debug_println("111111111111111111111111111111111111111");
+        //     if (client->Rx_lora_task_handle)
+        //     {
+        //         debug_println("111111111111111111111111111111111111111");
 
-            vTaskNotifyGiveFromISR(client->Rx_lora_task_handle,
-                                   &xHigherPriorityTaskWoken);
-            portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+        //         vTaskNotifyGiveFromISR(client->Rx_lora_task_handle,
+        //                                &xHigherPriorityTaskWoken);
+        //         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+        //     }
+        debug_println("接收lora转485从机");
+        for (int i = 0; i < size; i++)
+        {
+            xQueueSendFromISR(rtu_rx_q, client->parse_buf + i, &xHigherPriorityTaskWoken);
         }
+        HAL_UARTEx_ReceiveToIdle_DMA(huart, client->rx_buf, (uint16_t)sizeof(client->rx_buf));
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
 }

@@ -9,7 +9,7 @@ ModbusRtuClient encoder_client;
 // ✅ 创建事件组（用来通知RX任务）
   // EventGroupHandle_t eg  = xEventGroupCreate();
   EventGroupHandle_t eg = NULL; // 初始化事件组为NULL
-  void NexModbusClient_Init(void) {
+  void EventGroupCreate_Init(void) {
     if (eg == NULL) {
         eg = xEventGroupCreate();
     }
