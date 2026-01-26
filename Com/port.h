@@ -6,8 +6,8 @@ extern "C" {
 #endif
 
 // Max size of coil and register area
-#define COIL_BUF_SIZE 256
-#define REG_BUF_SIZE 256
+#define COIL_BUF_SIZE 1024
+#define REG_BUF_SIZE 2048
 
 // NanoModbus include
 #include "nanomodbus.h"

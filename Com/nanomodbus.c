@@ -29,7 +29,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-
+#include "com_debug.h"
 #define NMBS_UNUSED_PARAM(x) ((x) = (x))
 
 #ifdef NMBS_DEBUG
@@ -143,7 +143,7 @@ static void swap_regs(uint16_t* data, uint16_t n) {
     }
 }
 
-
+extern  UART_HandleTypeDef huart1;
 static nmbs_error recv(nmbs_t* nmbs, uint16_t count) {
     if (nmbs->msg.complete) {
         return NMBS_ERROR_NONE;
@@ -158,7 +158,7 @@ static nmbs_error recv(nmbs_t* nmbs, uint16_t count) {
     if (ret < count) {
         if (ret < 0)
             return NMBS_ERROR_TRANSPORT;
-
+        debug_println("recv ");
         return NMBS_ERROR_TIMEOUT;
     }
 
@@ -175,7 +175,8 @@ static nmbs_error send(const nmbs_t* nmbs, uint16_t count) {
     if (ret < count) {
         if (ret < 0)
             return NMBS_ERROR_TRANSPORT;
-
+debug_println("send ");
+// HAL_UART_Transmit_DMA(&huart1, "send timeout", 13);
         return NMBS_ERROR_TIMEOUT;
     }
 

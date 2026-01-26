@@ -2,6 +2,7 @@
 #include "port.h"
 #include "FreeRTOS.h"
 #include <string.h>
+#include "semphr.h"
 #define NMBS_RTU
 #ifdef NMBS_TCP
 static int32_t read_socket(uint8_t* buf, uint16_t count, int32_t byte_timeout_ms, void* arg);
@@ -18,6 +19,10 @@ uint8_t rtu_rx_b[MB_RX_BUF_SIZE];
 #endif
 
 #endif
+
+
+// ✅ 全局互斥锁
+static SemaphoreHandle_t modbus_mutex = NULL;
 
 static nmbs_server_t* server;
 
@@ -60,7 +65,7 @@ nmbs_error nmbs_server_init(nmbs_t* nmbs, nmbs_server_t* _server) {
 
 #if MB_UART_DMA
     rtu_rx_q = xQueueCreate(MB_RX_BUF_SIZE, sizeof(uint8_t));
-    HAL_UARTEx_ReceiveToIdle_DMA(&MB_UART, rtu_rx_b, MB_RX_BUF_SIZE);
+    // HAL_UARTEx_ReceiveToIdle_DMA(&MB_UART, rtu_rx_b, MB_RX_BUF_SIZE);
 #endif
 
     nmbs_error status = nmbs_server_create(nmbs, server->id, &conf, &cb);
@@ -196,6 +201,12 @@ int32_t write_socket(const uint8_t* buf, uint16_t count, int32_t byte_timeout_ms
 #ifdef NMBS_RTU
 static int32_t read_serial(uint8_t* buf, uint16_t count, int32_t byte_timeout_ms, void* arg) {
 #if MB_UART_DMA
+ // ✅ 获取互斥锁（最多等待 byte_timeout_ms）×
+    // if (xSemaphoreTake(modbus_mutex, pdMS_TO_TICKS(byte_timeout_ms)) != pdTRUE) {
+    //     debug("❌ Failed to take modbus mutex");
+    //     return 0;
+    // }
+//×
     uint32_t tick_start = HAL_GetTick();
     while (uxQueueMessagesWaiting(rtu_rx_q) < count) {
         if (HAL_GetTick() - tick_start >= (uint32_t) byte_timeout_ms) {
@@ -203,8 +214,12 @@ static int32_t read_serial(uint8_t* buf, uint16_t count, int32_t byte_timeout_ms
         }
     }
     for (int i = 0; i < count; i++) {
+        taskENTER_CRITICAL();
         xQueueReceive(rtu_rx_q, buf + i, 1);
+        taskEXIT_CRITICAL();
     }
+    // ✅ 释放互斥锁×
+    // xSemaphoreGive(modbus_mutex);
     return count;
 #else
     HAL_StatusTypeDef status = HAL_UART_Receive(&MB_UART, buf, count, byte_timeout_ms);
@@ -218,7 +233,9 @@ static int32_t read_serial(uint8_t* buf, uint16_t count, int32_t byte_timeout_ms
 }
 static int32_t write_serial(const uint8_t* buf, uint16_t count, int32_t byte_timeout_ms, void* arg) {
 #if MB_UART_DMA
+taskENTER_CRITICAL();
     HAL_UART_Transmit_DMA(&MB_UART, buf, count);
+    taskEXIT_CRITICAL();
 #else
     HAL_StatusTypeDef status = HAL_UART_Transmit(&MB_UART, buf, count, byte_timeout_ms);
     if (status == HAL_OK) {
@@ -242,6 +259,7 @@ static int32_t write_serial(const uint8_t* buf, uint16_t count, int32_t byte_tim
 //         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 //     }
 //     // You may add your additional uart handler below
+
 // }
 #endif
 

@@ -38,10 +38,10 @@ typedef struct ModbusRtuClient {
   
   UART_HandleTypeDef *huart;
   uint8_t tx_buf[128]; // Transmit frame buffer
-  uint8_t rx_buf[128];
+  uint8_t rx_buf[256];
   uint8_t rx_frame_len;
   uint8_t rx_timeout;
-  uint8_t parse_buf[128];
+  uint8_t parse_buf[256];
 
   // EventGroupHandle_t event_group; // ✅ 新增：事件组句柄
 
