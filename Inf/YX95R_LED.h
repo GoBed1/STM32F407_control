@@ -24,9 +24,83 @@
 
 #define YX95R_CMD_LIGHT_CONTROL      0x00C2  // 灯控制命令寄存器
 
-/* ============================= 函数声明 ============================= */
 
+/* ============================= 灯命令数据定义 ============================= */
+//灯地址：0x01
+/* 常亮 COM：X=4，Y=1~7 */
+extern const uint8_t cmd_red_com[6] ;
+extern const uint8_t cmd_red_slow[6] ;
+extern const uint8_t cmd_red_fast[6] ;
+extern const uint8_t cmd_yellow_com[6] ;
+extern const uint8_t cmd_yellow_slow[6] ;
+extern const uint8_t cmd_yellow_fast[6] ;
+extern const uint8_t cmd_green_com[6] ;
+extern const uint8_t cmd_green_slow[6] ;
+extern const uint8_t cmd_green_fast[6] ;
+extern const uint8_t cmd_white_com[6] ;
+extern const uint8_t cmd_white_slow[6] ;
+extern const uint8_t cmd_white_fast[6] ;
+extern const uint8_t cmd_blue_com[6] ;
+extern const uint8_t cmd_blue_slow[6] ;
+extern const uint8_t cmd_blue_fast[6] ;
+extern const uint8_t cmd_cyan_com[6] ;
+extern const uint8_t cmd_cyan_slow[6] ;
+extern const uint8_t cmd_cyan_fast[6] ;
+extern const uint8_t cmd_purple_com[6] ;
+extern const uint8_t cmd_purple_slow[6] ;
+extern const uint8_t cmd_purple_fast[6] ;
+//关闭所有灯：X=7，Y=0
+extern const uint8_t cmd_off[6] ;
 
+/* ============================= 喇叭命令定义 ============================= */
+//喇叭地址：0x02
+/* 喇叭循环指定歌曲 (7：吊钩3m范围内有人, 8：吊钩7m内有人) */
+extern const uint8_t cmd_sound_3m_warn[6] ;
+extern const uint8_t cmd_sound_7m_warn[6] ;
+extern const uint8_t cmd_sound_stop[6] ;
+// extern const uint8_t cmd_sound_setVolume[6] ;
+extern const uint8_t cmd_sound_volumeUp[6] ;
+extern const uint8_t cmd_sound_volumeDown[6] ;
+
+/* ============================= 灯的函数宏声明 ============================= */
+#define YX95R_LIGHT_ON_RED_COM  YX95R_RGB_Write_Register((uint8_t*)cmd_red_com)//红色常亮 
+#define YX95R_LIGHT_ON_RED_SLOW YX95R_RGB_Write_Register((uint8_t*)cmd_red_slow)//红色慢闪 
+#define YX95R_LIGHT_ON_RED_FAST YX95R_RGB_Write_Register((uint8_t*)cmd_red_fast)//红色快闪 
+#define YX95R_LIGHT_ON_YELLOW_COM  YX95R_RGB_Write_Register((uint8_t*)cmd_yellow_com)//黄色常亮 
+#define YX95R_LIGHT_ON_YELLOW_SLOW YX95R_RGB_Write_Register((uint8_t*)cmd_yellow_slow)//黄色慢闪
+#define YX95R_LIGHT_ON_YELLOW_FAST YX95R_RGB_Write_Register((uint8_t*)cmd_yellow_fast)//黄色快闪
+#define YX95R_LIGHT_ON_GREEN_COM  YX95R_RGB_Write_Register((uint8_t*)cmd_green_com)//绿色常亮
+#define YX95R_LIGHT_ON_GREEN_SLOW YX95R_RGB_Write_Register((uint8_t*)cmd_green_slow)//绿色慢闪 
+#define YX95R_LIGHT_ON_GREEN_FAST YX95R_RGB_Write_Register((uint8_t*)cmd_green_fast)//绿色快闪 
+#define YX95R_LIGHT_ON_WHITE_COM  YX95R_RGB_Write_Register((uint8_t*)cmd_white_com)//白色常亮
+#define YX95R_LIGHT_ON_WHITE_SLOW YX95R_RGB_Write_Register((uint8_t*)cmd_white_slow)//白色慢闪 
+#define YX95R_LIGHT_ON_WHITE_FAST YX95R_RGB_Write_Register((uint8_t*)cmd_white_fast)//白色快闪 
+#define YX95R_LIGHT_ON_BLUE_COM  YX95R_RGB_Write_Register((uint8_t*)cmd_blue_com)//蓝色常亮 
+#define YX95R_LIGHT_ON_BLUE_SLOW YX95R_RGB_Write_Register((uint8_t*)cmd_blue_slow)//蓝色慢闪 
+#define YX95R_LIGHT_ON_BLUE_FAST YX95R_RGB_Write_Register((uint8_t*)cmd_blue_fast)//蓝色快闪 
+#define YX95R_LIGHT_ON_CYAN_COM  YX95R_RGB_Write_Register((uint8_t*)cmd_cyan_com)//青色常亮
+#define YX95R_LIGHT_ON_CYAN_SLOW YX95R_RGB_Write_Register((uint8_t*)cmd_cyan_slow)//青色慢闪
+#define YX95R_LIGHT_ON_CYAN_FAST YX95R_RGB_Write_Register((uint8_t*)cmd_cyan_fast)//青色快闪 
+#define YX95R_LIGHT_ON_PURPLE_COM  YX95R_RGB_Write_Register((uint8_t*)cmd_purple_com)
+#define YX95R_LIGHT_ON_PURPLE_SLOW YX95R_RGB_Write_Register((uint8_t*)cmd_purple_slow)
+#define YX95R_LIGHT_ON_PURPLE_FAST YX95R_RGB_Write_Register((uint8_t*)cmd_purple_fast)
+/* 关闭所有灯：X=7，Y=0 */
+#define YX95R_LIGHT_OFF             YX95R_RGB_Write_Register((uint8_t*)cmd_off)
+
+/* ============================= 喇叭的函数宏声明 ============================= */
+//喇叭地址：0x02
+// #define SOUND_3M_WARN YX95R_RGB_Loop_Song(0x02, 7); // 喇叭循环播放曲目 (7：吊钩3m范围内有人)
+// #define SOUND_7M_WARN YX95R_RGB_Loop_Song(0x02, 8); // 喇叭循环播放曲目 (8：吊钩7m范围内有人)
+// #define SOUND_STOP YX95R_RGB_StopMusic(0x02); // 停止喇叭播放
+#define SOUND_SET_VOLUME(x) YX95R_RGB_Set_Volume(0x02, x); // 设置喇叭音量 (0~100)
+// #define SOUND_VOLUME_UP YX95R_RGB_Volume_Up(0x02); // 喇叭音量加
+// #define SOUND_VOLUME_DOWN YX95R_RGB_Volume_Down(0x02); // 喇叭音量减
+#define BUZZER_SOUND_3M_WARN  YX95R_RGB_Write_Register ((uint8_t*)cmd_sound_3m_warn)//喇叭循环播放曲目 (7：吊钩3m范围内有人)
+#define BUZZER_SOUND_7M_WARN  YX95R_RGB_Write_Register ((uint8_t*)cmd_sound_7m_warn)//喇叭循环播放曲目 (8：吊钩7m范围内有人)
+#define BUZZER_SOUND_STOP  YX95R_RGB_Write_Register ((uint8_t*)cmd_sound_stop)//停止喇叭播放
+// #define YX95R_SOUND_SET_VOLUME(x)  YX95R_RGB_Write_Register ((uint8_t*)cmd_sound_setVolume)//设置喇叭音量 (0~100)
+#define BUZZER_SOUND_VOLUME_UP  YX95R_RGB_Write_Register ((uint8_t*)cmd_sound_volumeUp)//喇叭音量加
+#define BUZZER_SOUND_VOLUME_DOWN  YX95R_RGB_Write_Register ((uint8_t*)cmd_sound_volumeDown)//喇叭音量减
 
 /**
  * @brief 计算 Modbus CRC16 校验码
@@ -36,6 +110,11 @@
  */
 uint16_t YX95R_CRC16_Calc(uint8_t *buffer, uint16_t len);
 
+void YX95R_RGB_Write_Register2(uint8_t addr, uint16_t reg, uint16_t data);
+
+void YX95R_RGB_Write_Register(uint8_t *CMD);
+
+// void YX95R_RGB_Write_Register(uint8_t *CMD);
 
 /**
  * @brief 通过 RS485 发送 Modbus 命令包
@@ -51,7 +130,7 @@ uint16_t YX95R_CRC16_Calc(uint8_t *buffer, uint16_t len);
 void YX95R_RGB_Send_Command(uint8_t * cmd, uint8_t len);
 
 //通用 Modbus 寄存器写入函数
-static void YX95R_RGB_Write_Register(uint8_t addr, uint16_t reg, uint16_t data);
+// static void YX95R_RGB_Write_Register(uint8_t addr, uint16_t reg, uint16_t data);
 
 void YX95R_RGB_Volume_Up(uint8_t addr);
 

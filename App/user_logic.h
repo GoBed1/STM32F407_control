@@ -5,4 +5,9 @@
 #include "com_debug.h"
 
 mb_err_op_t modbus_RxData_logic(uint8_t *Rx_data, uint16_t RxLen);
+
+void modbus_TxData_logic(void);
+
+void timeout_resend_logic(void);
+
 #endif // __USER_LOGIC_H

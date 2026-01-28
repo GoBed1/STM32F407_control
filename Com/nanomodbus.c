@@ -158,7 +158,7 @@ static nmbs_error recv(nmbs_t* nmbs, uint16_t count) {
     if (ret < count) {
         if (ret < 0)
             return NMBS_ERROR_TRANSPORT;
-        debug_println("recv ");
+        // debug_println("recv ");
         return NMBS_ERROR_TIMEOUT;
     }
 
@@ -175,7 +175,7 @@ static nmbs_error send(const nmbs_t* nmbs, uint16_t count) {
     if (ret < count) {
         if (ret < 0)
             return NMBS_ERROR_TRANSPORT;
-debug_println("send ");
+// debug_println("send ");
 // HAL_UART_Transmit_DMA(&huart1, "send timeout", 13);
         return NMBS_ERROR_TIMEOUT;
     }

@@ -15,6 +15,7 @@ extern "C" {
 
 void init_user_task(void);
 void start_user_task(void *argument);
+void SOUND_LED_task(void *argument);
 void YX95R_LED_task(void *argument);
 void ModbusRecv_task(void *argument);
 

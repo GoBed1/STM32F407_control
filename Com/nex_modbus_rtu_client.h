@@ -28,8 +28,9 @@ typedef enum ERR_OP_LIST
   ERR_TIME_OUT      = 17,// 超时错误
   ERR_BAD_SLAVE_ID  = 18,// 错误的从机ID错误
   ERR_BAD_TCP_ID    = 19,// 错误的TCP ID错误
+  ERR_FUC_CODE       = 20,// 功能码错误
   // Operations
-  OP_OK_QUERY       = 20  // this value is not an error, it is a number different than zero to acknowledge a correct operation,
+  OP_OK_QUERY       = 21  // this value is not an error, it is a number different than zero to acknowledge a correct operation,
                                         // which is needed because FreeRTOS notifications return zero on timeout.
 	                                    // Therefore we define our own Error and Operation codes and keep zero exclusively for FreeRTOS primitives
 }mb_err_op_t;
@@ -37,7 +38,7 @@ typedef enum ERR_OP_LIST
 typedef struct ModbusRtuClient {
   
   UART_HandleTypeDef *huart;
-  uint8_t tx_buf[128]; // Transmit frame buffer
+  uint8_t tx_buf[128]; // 记录发送数据的缓冲区
   uint8_t rx_buf[256];
   uint8_t rx_frame_len;
   uint8_t rx_timeout;
