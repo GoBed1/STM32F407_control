@@ -2,7 +2,7 @@
 #define _USER_TASK_H
 
 #include "main.h"
-#include "YX95R_LED.h"
+#include "hardware.h"
 #include "uart_app.h"
 #include "nex_modbus_rtu_client.h"
 #include "port.h"
@@ -20,6 +20,8 @@ void YX95R_LED_task(void *argument);
 void ModbusRecv_task(void *argument);
 
 void RecvMaster_task(void *argument);
+
+void ReadSoc_task(void *argument);
 
 #ifdef __cplusplus
 }

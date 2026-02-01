@@ -4,7 +4,6 @@
 #include "user_logic.h"
 #include "semphr.h"
 
-
 extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart2;
 extern ModbusRtuClient encoder_client;
@@ -49,6 +48,13 @@ const osThreadAttr_t RecvMasterTask_attributes = {
     .stack_size = 1024 * 4,
     .priority = (osPriority_t)osPriorityNormal,
 };
+// 读取电量任务
+osThreadId_t ReadSocTaskHandle;
+const osThreadAttr_t ReadSocTask_attributes = {
+    .name = "ReadSocTask",
+    .stack_size = 1024 * 4,
+    .priority = (osPriority_t)osPriorityNormal,
+};
 
 void init_user_task(void)
 {
@@ -74,6 +80,7 @@ void init_user_task(void)
 
   RecvMasterTaskHandle = osThreadNew(RecvMaster_task, NULL, &RecvMasterTask_attributes); // 接收工控机数据任务线程
 
+  // ReadSocTaskHandle = osThreadNew(ReadSoc_task, NULL, &ReadSocTask_attributes); // 读取电量任务线程
 }
 
 void start_user_task(void *argument)
@@ -87,16 +94,15 @@ void start_user_task(void *argument)
 // 爆闪灯
 void SOUND_LED_task(void *argument)
 {
-  //喇叭+灯发送任务
+  // 喇叭+灯发送任务
   debug_println("SOUND_LED_task started...........");
 
   for (;;)
   {
-    
-    modbus_TxData_logic();
-    
-    osDelay(500); 
 
+    modbus_TxData_logic();
+
+    osDelay(500);
   }
 }
 // modbus接收任务
@@ -127,7 +133,7 @@ void ModbusRecv_task(void *argument)
 
       if (notif != 0)
       {
-        
+
         // debug_println("Recevice1: ");
         // for (int i = 0; i < encoder_client.rx_frame_len; i++)
         // {
@@ -138,14 +144,15 @@ void ModbusRecv_task(void *argument)
         Resend.timeout_resend_count = 0;
         // 解析数据帧
         mb_err_op_t status = modbus_RxData_logic(encoder_client.parse_buf, encoder_client.rx_frame_len);
-        if (status != OP_OK_QUERY){
-          debug_println("slave recv ACK error-%d !",status);
+        if (status != OP_OK_QUERY)
+        {
+          debug_println("slave recv ACK error-%d !", status);
         }
-
       }
       else
       {
-        //超时重发逻辑
+        
+        // 超时重发逻辑
         timeout_resend_logic();
       }
     }
@@ -160,10 +167,25 @@ void RecvMaster_task(void *argument)
   debug_println("modbusSlave_task started...........");
   for (;;)
   {
-   
+
     // ✅ 轮询处理 Modbus 请求
-     nmbs_server_poll(&modbus_slave);
+    nmbs_error a = nmbs_server_poll(&modbus_slave);
+    // debug_println("modbusSlave_task poll result: %d", a);
 
     osDelay(500); // 根据需要调整延迟时间
   }
 }
+
+// // 读取电量任务
+// void ReadSoc_task(void *argument)
+// {
+//   debug_println("ReadSoc_task started...........");
+//   for (;;)
+//   {
+//     // 读取电量逻辑
+//     BMS_READ_SOC;
+//     xEventGroupSetBits(eg, EVENT_CMD_SENT);
+
+//     osDelay(5000); // 根据需要调整延迟时间
+//   }
+// }

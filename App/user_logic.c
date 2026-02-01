@@ -11,6 +11,7 @@ extern nmbs_server_t slave_data;
 // #define CMD_BUZZER_stop 3
 
 #define STATUS_BUZZER 101
+#define STATUS_BMS_SOC 102
 // #define STATUS_BUZZER_3m 102
 // #define STATUS_BUZZER_stop 103
 
@@ -22,7 +23,7 @@ typedef enum
 } buzzer_mode_t;
 
 void buzzer_logic(void);
-
+uint16_t BMS_ParseSOC(uint8_t data[], uint16_t data_len);
 // 处理接收到的数据包，并返回处理结果
 mb_err_op_t modbus_RxData_logic(uint8_t *Rx_data, uint16_t RxLen)
 {
@@ -41,8 +42,7 @@ mb_err_op_t modbus_RxData_logic(uint8_t *Rx_data, uint16_t RxLen)
                    // 做crc校验
             // debug_println("CRC OK！");
             return OP_OK_QUERY;
-
-            break;
+            // break;
 
         case 0x06: // 写寄存器
             if (RxLen != 8)
@@ -124,15 +124,16 @@ mb_err_op_t modbus_RxData_logic(uint8_t *Rx_data, uint16_t RxLen)
             // status.success = 0;
             return ERR_FUC_CODE;
         }
-        case 0x03: // lora-485
+        break;
+    case 0x03: // lora-485
         switch (func_code)
         {
         case 0x03: // 读取寄存器
-           
+
             break;
 
         case 0x06: // 写寄存器
-            
+            debug_println("LORA-485 WRITE！");
             break;
 
         default:
@@ -140,13 +141,37 @@ mb_err_op_t modbus_RxData_logic(uint8_t *Rx_data, uint16_t RxLen)
             return ERR_FUC_CODE;
         }
         break;
+    case 0x04: // bms电源读取
+        switch (func_code)
+        {
+        case 0x03: // 读取寄存器,把电量读出来，写入保持reg[102]
+            // taskENTER_CRITICAL();
+            // debug_println("Recevice bms SOC: ");
+            // for (int i = 0; i < encoder_client.rx_frame_len; i++)
+            // {
+            //     debug_println("%02X ", encoder_client.parse_buf[i]);
+            // }
+            // taskEXIT_CRITICAL();
+            // 更新状态寄存器regs[102]
+            uint16_t SOC = BMS_ParseSOC(encoder_client.parse_buf, (uint16_t)encoder_client.rx_frame_len);
+            slave_data.regs[STATUS_BMS_SOC] = SOC;
+            debug_println("SOC: %d", slave_data.regs[STATUS_BMS_SOC]);
+            break;
 
+        case 0x06: // 写寄存器
+            debug_println("LORA-485 WRITE！");
+            break;
+
+        default:
+            // status.success = 0;
+            return ERR_FUC_CODE;
+        }
+        break;
     default:
         // 未知的从机地址
         // status.success = 0;
         return ERR_BAD_ADDRESS;
     }
-
     // return ERR_BAD_ADDRESS;
 }
 // 处理发送的数据包，并返回处理结果
@@ -180,7 +205,16 @@ void modbus_TxData_logic(void)
     }
     // 喇叭逻辑处理
     buzzer_logic();
+
+    // bms电源读取发送
+    // bms_read_logic();
 }
+
+// //bms电源读取发送逻辑
+// void bms_read_logic(void)
+// {
+
+// }
 
 // 超时重发逻辑
 void timeout_resend_logic(void)
@@ -254,11 +288,52 @@ void buzzer_logic(void)
     // 只有真的发了命令才通知 RX 任务
     xEventGroupSetBits(eg, EVENT_CMD_SENT);
 }
-
+// 记录发送命令到TX BUF中,方便重发和查看
 void record_tx_cmd(uint8_t *cmd, uint8_t len)
 {
     for (int i = 0; i < len; i++)
     {
         encoder_client.tx_buf[i] = cmd[i];
     }
+}
+// 对bms读取的soc解析函数，返回0-100百分比值，出错返回0xFFFF
+uint16_t BMS_ParseSOC(uint8_t data[], uint16_t data_len)
+{
+    if (data_len < 7)
+    {
+        return 0xFFFF;
+    }
+
+    if (data[1] != 0x03)
+    {
+        return 0xFFFF;
+    }
+
+    if (data[2] != 2)
+    {
+        return 0xFFFF;
+    }
+//crc校验
+    uint16_t crc_received = ((uint16_t)data[data_len - 1] << 8) | data[data_len - 2];
+    uint16_t crc_calc = YX95R_CRC16_Calc(data, data_len - 2);
+
+    if (crc_received == crc_calc)
+    {
+        debug_println("BMS CRC OK");
+    }
+
+    //取SOC原始值
+    uint16_t soc_raw = ((uint16_t)data[3] << 8) | data[4];
+
+   //四舍五入转换为0-100百分比
+    uint16_t soc_percent = (soc_raw + 50) / 100;
+
+    /* ===== 第7步：限制范围0-100 ===== */
+    /* 超过99都改成100 */
+    if (soc_percent > 99)
+    {
+        soc_percent = 100;
+    }
+
+    return soc_percent; /* 返回0-100 */
 }

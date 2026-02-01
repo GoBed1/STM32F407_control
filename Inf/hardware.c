@@ -1,4 +1,4 @@
-#include "YX95R_LED.h"
+#include "hardware.h"
 
 /* ============================================================================
  *              YX95R-485M 爆闪灯 Modbus RTU 控制库 - 实现部分
@@ -30,16 +30,29 @@ const uint8_t cmd_purple_slow[6] = {0x01,0x06,0x00,0xC2,0x00,0x57};
 const uint8_t cmd_purple_fast[6] = {0x01,0x06,0x00,0xC2,0x00,0x67};
 //关灯
 const uint8_t cmd_off[6] = {0x01,0x06,0x00,0xC2,0x00,0x60};
-//喇叭
+/*
+==============喇叭cmd===================
+*/
 const uint8_t cmd_sound_3m_warn[6] =  {0x02,0x06,0x00,0x08,0x00,0x07};
 const uint8_t cmd_sound_7m_warn[6] =  {0x02,0x06,0x00,0x08,0x00,0x08};
 const uint8_t cmd_sound_stop[6] ={0x02,0x06,0x00,0x16,0x00,0x01};
 const uint8_t cmd_sound_volumeUp[6] ={0x02,0x06,0x00,0x04,0x00,0x00};
 const uint8_t cmd_sound_volumeDown[6] ={0x02,0x06,0x00,0x05,0x00,0x00};
+/*
+=============bms cmd====================
+*/
+const uint8_t cmd_read_soc[6] = {0x04,0x03,0x00,0x00,0x00,0x01};//读取SOC百分比命令
+const uint8_t cmd_read_full_capacity[6] = {0x04,0x03,0x00,0x04,0x00,0x01};//读取满容容量命令
+const uint8_t cmd_read_remain_capacity[6] = {0x04,0x03,0x00,0x04,0x00,0x01};//读取剩余容量命令
+const uint8_t cmd_read_total_voltage[6] = {0x04,0x03,0x00,0x02,0x00,0x01};//读取总电压命令
+const uint8_t cmd_read_total_current[6] = {0x04,0x03,0x00,0x01,0x00,0x01};//读取总电流命令
+
+
 
 // 发送 Modbus RTU 命令到 RS485 总线
 void YX95R_RGB_Send_Command(uint8_t *cmd, uint8_t len) {
-   HAL_UART_Transmit(&huart2, cmd, len, HAL_MAX_DELAY);
+    
+   HAL_UART_Transmit(&huart2, cmd, len, HAL_MAX_DELAY);   
     HAL_Delay(200);
 
     // 等待发送完成

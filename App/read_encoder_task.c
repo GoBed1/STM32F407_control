@@ -48,6 +48,15 @@ void mbr_recv_callback(ModbusRtuClient *client, UART_HandleTypeDef *huart, uint1
         }
         // HAL_UARTEx_ReceiveToIdle_DMA(huart, client->rx_buf, (uint16_t)sizeof(client->rx_buf));
     }
+    else if (client->parse_buf[0] == 0x04)//bms从机
+    {
+        if (client->task_handle)
+        {
+            vTaskNotifyGiveFromISR(client->task_handle,
+                                   &xHigherPriorityTaskWoken);
+        }
+    }
+    
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 
 }
