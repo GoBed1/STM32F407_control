@@ -3,6 +3,7 @@
 // #include <stddef.h>
 #include "event_groups.h"
 ModbusRtuClient encoder_client;
+ModbusRtuClient RFID_client;
 
 
 // uint16_t a=0;

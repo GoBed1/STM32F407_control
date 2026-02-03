@@ -7,10 +7,18 @@
 extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart2;
 extern ModbusRtuClient encoder_client;
+extern ModbusRtuClient RFID_client;
 extern EventGroupHandle_t eg;
 extern ModbusRtu_Resend_t Resend;
 extern uint8_t test_tx_cmd[8];
-extern SemaphoreHandle_t uart2_rx_semaphore;
+// extern SemaphoreHandle_t uart2_rx_semaphore;
+
+// 全局二值信号量（一个管“能不能发”（总线锁），一个管“应答到了没”（应答信号））
+// SemaphoreHandle_t mb_bus_sem  = NULL;
+// SemaphoreHandle_t mb_resp_sem = NULL;
+
+osThreadId_t RFID_handle = NULL;
+
 // ✅ 定义 Modbus 从机全局变量
 nmbs_t modbus_slave;
 
@@ -63,6 +71,12 @@ void init_user_task(void)
   encoder_client.task_handle = NULL;
   encoder_client.rx_frame_len = 0;
   encoder_client.rx_timeout = 0;
+
+  //  mb_bus_sem  = xSemaphoreCreateBinary();//总线令牌（谁拿到谁才能发）
+  //   mb_resp_sem = xSemaphoreCreateBinary();//应答到达信号，初始保持“空”，等 ISR 收到匹配应答后 give
+
+//  xSemaphoreGive(mb_bus_sem); // 初始化时，总线令牌给出去
+
   // 创建事件组（用来通知RX任务）
   EventGroupCreate_Init();
   // 初始化串口2接收DMA
@@ -80,7 +94,7 @@ void init_user_task(void)
 
   RecvMasterTaskHandle = osThreadNew(RecvMaster_task, NULL, &RecvMasterTask_attributes); // 接收工控机数据任务线程
 
-  // ReadSocTaskHandle = osThreadNew(ReadSoc_task, NULL, &ReadSocTask_attributes); // 读取电量任务线程
+  ReadSocTaskHandle = osThreadNew(ReadSoc_task, NULL, &ReadSocTask_attributes); // 读取电量任务线程
 }
 
 void start_user_task(void *argument)
@@ -94,14 +108,31 @@ void start_user_task(void *argument)
 // 爆闪灯
 void SOUND_LED_task(void *argument)
 {
-  // 喇叭+灯发送任务
   debug_println("SOUND_LED_task started...........");
+
+  TickType_t last_500ms = xTaskGetTickCount();
+  TickType_t last_10s = xTaskGetTickCount();
 
   for (;;)
   {
+    // 每 500ms 执行一次
+    if (xTaskGetTickCount() - last_500ms >= pdMS_TO_TICKS(500))
+    {
+      last_500ms += pdMS_TO_TICKS(500);
+      modbus_TxData_logic();
+    }
 
-    modbus_TxData_logic();
+    // 每 10s 执行一次（读取电量/电流）
+    if (xTaskGetTickCount() - last_10s >= pdMS_TO_TICKS(5000))
+    {
+      last_10s += pdMS_TO_TICKS(5000);
+      record_tx_cmd(cmd_read_soc, 6);
+      BMS_READ_SOC;                           // 你的读取电量宏/函数
+      debug_println("BMS_READ_SOC122221");
+      xEventGroupSetBits(eg, EVENT_CMD_SENT); // 通知接收任务去等 ACK
+    }
 
+    // 小延时，避免空转占CPU
     osDelay(500);
   }
 }
@@ -151,7 +182,7 @@ void ModbusRecv_task(void *argument)
       }
       else
       {
-        
+
         // 超时重发逻辑
         timeout_resend_logic();
       }
@@ -177,15 +208,37 @@ void RecvMaster_task(void *argument)
 }
 
 // // 读取电量任务
-// void ReadSoc_task(void *argument)
-// {
-//   debug_println("ReadSoc_task started...........");
-//   for (;;)
-//   {
-//     // 读取电量逻辑
-//     BMS_READ_SOC;
-//     xEventGroupSetBits(eg, EVENT_CMD_SENT);
+void ReadSoc_task(void *argument)
+{
+  debug_println("ReadSoc_task started...........");
+  RFID_handle = xTaskGetCurrentTaskHandle();
 
-//     osDelay(5000); // 根据需要调整延迟时间
-//   }
-// }
+  for (;;)
+  {
+    // 读取电量逻辑
+    // BMS_READ_SOC;
+    // xEventGroupSetBits(eg, EVENT_CMD_SENT);
+    // 一直等待接收数据
+    // ✅ 等待TX任务发送命令的事件
+    EventBits_t uxBits = xEventGroupWaitBits(
+        eg,            // 事件组
+        EVENT_RFID_RX, // 等待这个事件
+        pdTRUE,        // 自动清除标志
+        pdFALSE,       // 不需要等待所有位
+        portMAX_DELAY  // 无限等待
+    );
+    // 发送命令
+    if ((uxBits & EVENT_RFID_RX) != 0)
+    {
+      taskENTER_CRITICAL();
+      debug_println("Recevice1: ");
+      for (int i = 0; i < RFID_client.Rx_RFID_len; i++)
+      {
+        debug_println("%02X ", RFID_client.Rx_RFID_buf[i]);
+      }
+      taskEXIT_CRITICAL();
+    }
+
+    osDelay(1000); // 根据需要调整延迟时间
+  }
+}

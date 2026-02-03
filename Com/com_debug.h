@@ -7,6 +7,8 @@
 #include "event_groups.h"
 
 #define EVENT_CMD_SENT (1 << 0)  // ✅ TX发送了命令的事件
+#define EVENT_RFID_RX (1 << 1)  // ✅ RFID收到了命令的事件
+
 
 extern uint8_t a;
 #define DEBUG0

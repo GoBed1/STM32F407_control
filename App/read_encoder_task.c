@@ -10,53 +10,55 @@
 // #include "lwip.h"
 // #include "port.h"
 // ModbusRtuClient encoder_client;
+extern EventGroupHandle_t eg;
+extern osThreadId_t RFID_handle;
 extern xQueueHandle rtu_rx_q;
 extern uint8_t rtu_rx_b[MB_RX_BUF_SIZE];
 void mbr_recv_callback(ModbusRtuClient *client, UART_HandleTypeDef *huart, uint16_t size)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    // debug_println("111111111111111111111111111111111111111");
-    // 将数据保存到mb_parse_buf中以供主任务处理
-    if (size > 0)
-    {
-        if (size > sizeof(client->parse_buf))
+    
+        // debug_println("111111111111111111111111111111111111111");
+        // 将数据保存到mb_parse_buf中以供主任务处理
+        if (size > 0)
         {
-            size = (uint16_t)sizeof(client->parse_buf);
+            if (size > sizeof(client->parse_buf))
+            {
+                size = (uint16_t)sizeof(client->parse_buf);
+            }
+            memcpy(client->parse_buf, client->rx_buf, size);
+            client->rx_frame_len = (uint8_t)size;
         }
-        memcpy(client->parse_buf, client->rx_buf, size);
-        client->rx_frame_len = (uint8_t)size;
-    }
         HAL_UARTEx_ReceiveToIdle_DMA(huart, client->rx_buf, (uint16_t)sizeof(client->rx_buf));
 
-    // 判断哪个从机发来的数据，然后通知对应的任务
-    if (client->parse_buf[0] == 0x01 || client->parse_buf[0] == 0x02)
-    { // 爆闪灯从机
+        // 判断哪个从机发来的数据，然后通知对应的任务
+        if (client->parse_buf[0] == 0x01 || client->parse_buf[0] == 0x02)
+        { // 爆闪灯从机
 
-        // 重新启动 DMA 接收以接收下一个数据包
-        if (client->task_handle)
-        {
-            vTaskNotifyGiveFromISR(client->task_handle,
-                                   &xHigherPriorityTaskWoken);
+            // 重新启动 DMA 接收以接收下一个数据包
+            if (client->task_handle)
+            {
+                vTaskNotifyGiveFromISR(client->task_handle,
+                                       &xHigherPriorityTaskWoken);
+            }
         }
-    }
-    else if (client->parse_buf[0] == 0x03)
-    {
-        
-        for (int i = 0; i < size; i++)
+        else if (client->parse_buf[0] == 0x03)
         {
-            xQueueSendFromISR(rtu_rx_q, client->parse_buf + i, &xHigherPriorityTaskWoken);
+
+            for (int i = 0; i < size; i++)
+            {
+                xQueueSendFromISR(rtu_rx_q, client->parse_buf + i, &xHigherPriorityTaskWoken);
+            }
+            // HAL_UARTEx_ReceiveToIdle_DMA(huart, client->rx_buf, (uint16_t)sizeof(client->rx_buf));
         }
-        // HAL_UARTEx_ReceiveToIdle_DMA(huart, client->rx_buf, (uint16_t)sizeof(client->rx_buf));
-    }
-    else if (client->parse_buf[0] == 0x04)//bms从机
-    {
-        if (client->task_handle)
+        else if (client->parse_buf[0] == 0x04) // bms从机
         {
-            vTaskNotifyGiveFromISR(client->task_handle,
-                                   &xHigherPriorityTaskWoken);
+            if (client->task_handle)
+            {
+                vTaskNotifyGiveFromISR(client->task_handle,
+                                       &xHigherPriorityTaskWoken);
+            }
         }
-    }
     
-        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }

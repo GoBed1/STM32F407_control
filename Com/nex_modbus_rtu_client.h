@@ -43,7 +43,8 @@ typedef struct ModbusRtuClient {
   uint8_t rx_frame_len;
   uint8_t rx_timeout;
   uint8_t parse_buf[256];
-
+  uint8_t Rx_RFID_buf[256];
+  uint8_t Rx_RFID_len;
   // EventGroupHandle_t event_group; // ✅ 新增：事件组句柄
 
   TaskHandle_t task_handle;
